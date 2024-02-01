@@ -34,7 +34,7 @@ func TestMachineToDelete(t *testing.T) {
 	now := metav1.Now()
 	nodeRef := &corev1.ObjectReference{Name: "some-node"}
 	healthyMachine := &clusterv1.Machine{Status: clusterv1.MachineStatus{NodeRef: nodeRef}}
-	mustDeleteMachine := &clusterv1.Machine{
+	deletingMachine := &clusterv1.Machine{
 		ObjectMeta: metav1.ObjectMeta{DeletionTimestamp: &now},
 		Status:     clusterv1.MachineStatus{NodeRef: nodeRef},
 	}
@@ -125,13 +125,13 @@ func TestMachineToDelete(t *testing.T) {
 			diff: 2,
 			machines: []*clusterv1.Machine{
 				healthyMachine,
-				mustDeleteMachine,
+				deletingMachine,
 				betterDeleteMachine,
-				mustDeleteMachine,
+				deletingMachine,
 			},
 			expect: []*clusterv1.Machine{
-				mustDeleteMachine,
-				mustDeleteMachine,
+				deletingMachine,
+				deletingMachine,
 			},
 		},
 		{
@@ -139,12 +139,12 @@ func TestMachineToDelete(t *testing.T) {
 			diff: 2,
 			machines: []*clusterv1.Machine{
 				healthyMachine,
-				mustDeleteMachine,
+				deletingMachine,
 				healthyMachine,
 				betterDeleteMachine,
 			},
 			expect: []*clusterv1.Machine{
-				mustDeleteMachine,
+				deletingMachine,
 				betterDeleteMachine,
 			},
 		},
@@ -153,11 +153,11 @@ func TestMachineToDelete(t *testing.T) {
 			diff: 2,
 			machines: []*clusterv1.Machine{
 				healthyMachine,
-				mustDeleteMachine,
+				deletingMachine,
 				healthyMachine,
 			},
 			expect: []*clusterv1.Machine{
-				mustDeleteMachine,
+				deletingMachine,
 				healthyMachine,
 			},
 		},
@@ -383,6 +383,10 @@ func TestMachineOldestDelete(t *testing.T) {
 	empty := &clusterv1.Machine{
 		Status: clusterv1.MachineStatus{NodeRef: nodeRef},
 	}
+	mustDeleteMachine := &clusterv1.Machine{
+		ObjectMeta: metav1.ObjectMeta{DeletionTimestamp: &currentTime},
+		Status:     clusterv1.MachineStatus{NodeRef: nodeRef},
+	}
 	newest := &clusterv1.Machine{
 		ObjectMeta: metav1.ObjectMeta{CreationTimestamp: metav1.NewTime(currentTime.Time.AddDate(0, 0, -1))},
 		Status:     clusterv1.MachineStatus{NodeRef: nodeRef},
@@ -512,6 +516,14 @@ func TestMachineOldestDelete(t *testing.T) {
 				empty, secondNewest, oldest, secondOldest, newest, nodeHealthyConditionUnknownMachine,
 			},
 			expect: []*clusterv1.Machine{nodeHealthyConditionUnknownMachine},
+		},
+		{
+			desc: "func=oldestDeletePriority, diff=1 (deletionTimestamp)",
+			diff: 1,
+			machines: []*clusterv1.Machine{
+				empty, secondNewest, oldest, secondOldest, newest, nodeHealthyConditionUnknownMachine, mustDeleteMachine,
+			},
+			expect: []*clusterv1.Machine{mustDeleteMachine},
 		},
 	}
 
